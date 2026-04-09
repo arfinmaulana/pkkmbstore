@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pemesanan Kit PKKMB</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        /* Base View Transitions */
+        .view-section {
+            display: none;
+            animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .view-section.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); filter: blur(4px); }
+            to { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+
+        /* Marquee Animation for Bundles */
+        .marquee-container {
+            overflow: hidden;
+            width: 100%;
+            position: relative;
+            mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        }
+        .marquee-track {
+            display: flex;
+            width: max-content;
+            animation: marquee 25s linear infinite;
+        }
+        .marquee-container:hover .marquee-track,
+        .marquee-container:active .marquee-track {
+            animation-play-state: paused;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* Hide scrollbar for clean UI */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+
+        /* Liquid Glass Card Utilities */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05), inset 0 0 0 1px rgba(255,255,255,0.3);
+        }
+
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        /* Ambient Background Animations */
+        .ambient-blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.6;
+            animation: float 10s infinite alternate ease-in-out;
+        }
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, -50px) scale(1.1); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-blue-500 selection:text-white min-h-screen relative overflow-x-hidden">
+
+    <!-- Ambient Background Elements for Futuristic UI -->
+    <div class="ambient-blob bg-blue-300 w-96 h-96 top-[-10%] left-[-10%]"></div>
+    <div class="ambient-blob bg-purple-300 w-[30rem] h-[30rem] bottom-[-20%] right-[-10%]" style="animation-delay: -5s;"></div>
+    <div class="ambient-blob bg-cyan-200 w-72 h-72 top-[40%] left-[30%] opacity-40"></div>
+
+    <!-- Navbar: Liquid Glass Apple Theme -->
+    <nav class="glass-nav text-slate-900 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+            
+            <div class="flex items-center">
+                <!-- Tombol Back -->
+                <button id="nav-back-btn" onclick="goBack()" class="hidden mr-3 p-2 bg-white/60 hover:bg-white/90 rounded-full backdrop-blur-md border border-white/80 transition shadow-sm">
+                    <i class="ph ph-caret-left text-lg font-bold"></i>
+                </button>
+
+                <!-- SECTION LOGO (Selaras, terpusat vertikal, ukuran konsisten) -->
+                <div class="flex items-center space-x-4 cursor-pointer" onclick="switchView('view-products')">
+                    <img src="./assets/logo-um.webp" alt="Logo UM" class="h-8 w-auto object-contain drop-shadow-sm" onerror="this.outerHTML='<span class=\'text-[10px] font-bold text-slate-400\'>UM</span>'">
+                    <img src="./assets/logo-lppp.webp" alt="Logo LPPP" class="h-8 w-auto object-contain drop-shadow-sm" onerror="this.outerHTML='<span class=\'text-[10px] font-bold text-slate-400\'>LPPP</span>'">
+                    <img src="./assets/logo-infest.png" alt="Logo INFEST" class="h-8 w-auto object-contain drop-shadow-sm" onerror="this.outerHTML='<span class=\'text-[10px] font-bold text-slate-400\'>INFEST</span>'">
+                    <div class="hidden lg:flex flex-col ml-2 border-l-2 border-slate-300 pl-3">
+                        <span class="text-sm font-extrabold tracking-tight text-slate-800 leading-none">PKKMB Store</span>
+                        <span class="text-[10px] font-medium text-slate-500 uppercase tracking-widest mt-0.5">Universitas Negeri Malang</span>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="switchView('view-cart')" class="relative flex items-center space-x-2 bg-white/60 hover:bg-white/90 px-4 py-2 rounded-full transition border border-white/80 shadow-sm backdrop-blur-md">
+                <i class="ph ph-shopping-bag text-xl text-blue-600"></i>
+                <span class="hidden sm:inline font-bold text-sm text-slate-700">Keranjang</span>
+                <!-- Badge -->
+                <span id="cart-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full hidden shadow-md border border-white">0</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="max-w-6xl mx-auto px-4 py-8 pb-24">
+
+        <!-- VIEW 1: PRODUCT CATALOG -->
+        <section id="view-products" class="view-section active">
+            
+            <!-- SECTION BUNDLING (Horizontal Marquee) -->
+            <div class="mb-14">
+                <div class="flex items-center justify-between mb-4 px-2">
+                    <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight drop-shadow-sm">Paket Bundling</h2>
+                    <span class="text-[10px] font-bold text-blue-700 bg-blue-100/80 backdrop-blur-sm px-3 py-1.5 rounded-full border border-blue-200 shadow-sm uppercase tracking-wider">Spesial</span>
+                </div>
+                
+                <div class="marquee-container">
+                    <div id="bundle-track" class="marquee-track gap-5 pb-4 px-2">
+                        <!-- Bundle cards dirender via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION INDIVIDUAL PRODUCTS -->
+            <div>
+                <h2 class="text-2xl font-extrabold text-slate-900 mb-6 tracking-tight drop-shadow-sm px-2">Kit Individual</h2>
+                <!-- Dioptimalkan untuk 4 kolom di PC, 2 kolom di Mobile untuk load efisien -->
+                <div id="product-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 px-2"></div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: CART -->
+        <section id="view-cart" class="view-section">
+            <h1 class="text-2xl font-extrabold text-slate-900 mb-6 drop-shadow-sm px-2">Keranjang Anda</h1>
+            <div class="flex flex-col lg:flex-row gap-8">
+                <div class="flex-grow glass-panel rounded-[2rem] p-6">
+                    <div id="cart-items" class="divide-y divide-slate-200/50"></div>
+                </div>
+                <div class="lg:w-1/3">
+                    <div class="glass-panel rounded-[2rem] p-6 sticky top-24">
+                        <h2 class="text-lg font-bold mb-4 text-slate-800">Ringkasan</h2>
+                        <div class="flex justify-between mb-4 text-slate-600 text-sm font-medium">
+                            <span>Subtotal</span>
+                            <span id="cart-subtotal" class="text-slate-900 font-bold">Rp 0</span>
+                        </div>
+                        <div class="border-t border-slate-200/80 pt-4 mb-6">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-slate-800">Total Harga</span>
+                                <span id="cart-total" class="font-extrabold text-blue-600 text-xl">Rp 0</span>
+                            </div>
+                        </div>
+                        <button id="btn-proceed-checkout" onclick="switchView('view-checkout')" class="w-full bg-blue-600/90 hover:bg-blue-600 text-white backdrop-blur-md font-bold py-3.5 px-4 rounded-full transition shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed border border-white/20">
+                            Lanjut Checkout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 3: CHECKOUT -->
+        <section id="view-checkout" class="view-section">
+            <div class="max-w-2xl mx-auto">
+                <div class="glass-panel rounded-[2rem] p-6 md:p-8">
+                    <div class="flex items-center mb-8 pb-4 border-b border-slate-200/80">
+                        <div class="w-10 h-10 bg-blue-600/10 text-blue-600 rounded-full flex items-center justify-center font-bold mr-4 border border-blue-200/50 shadow-inner">1</div>
+                        <h2 class="text-xl font-bold text-slate-900">Informasi Pengiriman</h2>
+                    </div>
+                    <form id="checkout-form" class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nama Lengkap</label>
+                            <input type="text" id="ch-name" required class="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-white/60 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition shadow-sm font-medium text-slate-800" placeholder="Sesuai KTP/KTM">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Nomor WhatsApp</label>
+                            <input type="tel" id="ch-phone" required class="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-white/60 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition shadow-sm font-medium text-slate-800" placeholder="081234567890">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Alamat Lengkap</label>
+                            <textarea id="ch-address" required rows="3" class="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-white/60 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition shadow-sm resize-none font-medium text-slate-800" placeholder="Alamat kos atau rumah"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Catatan Tambahan</label>
+                            <input type="text" id="ch-notes" class="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-white/60 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition shadow-sm font-medium text-slate-800" placeholder="Opsional (cth: Ukuran Kaos L)">
+                        </div>
+                        
+                        <div class="pt-6">
+                            <button type="submit" class="w-full bg-[#25D366]/90 backdrop-blur-md hover:bg-[#25D366] text-white font-bold py-4 px-4 rounded-full transition flex justify-center items-center shadow-lg shadow-green-500/30 border border-white/20">
+                                <i class="ph ph-whatsapp-logo text-2xl mr-2"></i> Konfirmasi via WhatsApp
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 4: SUCCESS -->
+        <section id="view-success" class="view-section text-center py-16">
+            <div class="glass-panel max-w-lg mx-auto rounded-[2rem] p-10 flex flex-col items-center">
+                <div class="inline-flex items-center justify-center w-24 h-24 bg-green-500/10 rounded-full mb-6 text-green-500 border border-green-200/50">
+                    <i class="ph ph-check-circle text-6xl"></i>
+                </div>
+                <h1 class="text-3xl font-extrabold text-slate-900 mb-4 tracking-tight">Pesanan Direkam!</h1>
+                <p class="text-slate-600 mb-8 font-medium">Data tersimpan di perangkat. Silakan kirim detail pesanan ke Admin via WhatsApp untuk validasi.</p>
+                <div class="flex flex-col w-full gap-3">
+                    <a id="btn-wa-redirect" href="#" target="_blank" class="w-full bg-[#25D366]/90 backdrop-blur-md hover:bg-[#25D366] text-white font-bold py-3.5 px-8 rounded-full transition shadow-lg shadow-green-500/30 flex items-center justify-center border border-white/20">
+                        <i class="ph ph-paper-plane-tilt text-xl mr-2"></i> Buka WhatsApp
+                    </a>
+                    <button onclick="switchView('view-products')" class="w-full bg-white/60 backdrop-blur-md hover:bg-white border border-white/80 text-slate-800 font-bold py-3.5 px-8 rounded-full transition shadow-sm">
+                        Kembali ke Beranda
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer: Manhattan Team -->
+    <footer class="mt-auto border-t border-slate-200/50 bg-white/30 backdrop-blur-xl relative z-10">
+        <div class="max-w-6xl mx-auto px-4 py-8 flex flex-col items-center text-center">
+            <div class="flex items-center space-x-2 mb-4">
+                <i class="ph ph-users text-2xl text-blue-600"></i>
+                <h3 class="text-lg font-extrabold tracking-widest text-slate-800 uppercase">Manhattan Team</h3>
+            </div>
+            <div class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm font-medium text-slate-600 mb-6 max-w-2xl">
+                <span>Abdullah Gibran</span> &bull; 
+                <span>Amrul Bagas</span> &bull; 
+                <span>Ananta Deva</span> &bull; 
+                <span>Arfin Maulana</span> &bull; 
+                <span>Emillia Sartika</span>
+            </div>
+            <p class="text-xs font-bold text-slate-400">&copy; 2026 Manhattan Team &bull; Universitas Negeri Malang</p>
+        </div>
+    </footer>
+
+    <!-- IMAGE VIEWER MODAL (Apple Lightbox Style) -->
+    <div id="image-viewer" class="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-xl opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center p-4" onclick="closeImage()">
+        <button class="absolute top-6 right-6 w-10 h-10 bg-white/20 hover:bg-white/40 text-white rounded-full flex items-center justify-center backdrop-blur-md transition border border-white/30" onclick="closeImage()">
+            <i class="ph ph-x text-xl font-bold"></i>
+        </button>
+        <img id="viewer-img" src="" class="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-white/80 backdrop-blur-xl text-slate-800 px-6 py-3.5 rounded-full shadow-xl transform translate-y-20 opacity-0 transition-all duration-400 z-50 flex items-center border border-white">
+        <i class="ph ph-check-circle text-blue-600 mr-2 text-xl font-bold"></i>
+        <span id="toast-msg" class="font-bold text-sm tracking-tight">Item ditambahkan.</span>
+    </div>
+
+    <script>
+        /**
+         * 1. DATA STATE & CONFIGURATION
+         */
+        
+        // Data Bundling
+        const bundles = [
+            {
+                id: "BND-FT",
+                name: "Bundling Fakultas Teknik",
+                description: "ID Card, Bag Tag, Pita Fakultas (Merah), Handbook, ATK",
+                price: 40000,
+                image: "./assets/bundling-ft.png"
+            },
+            {
+                id: "BND-FK",
+                name: "Bundling Fakultas Kedokteran",
+                description: "ID Card, Bag Tag, Pita Fakultas (Hijau Muda), Handbook, ATK",
+                price: 40000,
+                image: "./assets/bundling-fk.png"
+            },
+            {
+                id: "BND-FMIPA",
+                name: "Bundling Fakultas MIPA",
+                description: "ID Card, Bag Tag, Pita Fakultas (Hijau Tua), Handbook, ATK",
+                price: 40000,
+                image: "./assets/bundling-fmipa.png"
+            }
+        ];
+
+        // Data Produk Individual (Sesuai List Baru, UI Clean)
+        const products = [
+            { id: "KI-IDC", name: "ID Card", price: 8000, image: "./assets/ki-idcard.png" },
+            { id: "KI-BGT", name: "Bag Tag", price: 8000, image: "./assets/ki-bagtag.png" },
+            { id: "KI-HNB", name: "Handbook", price: 16000, image: "./assets/ki-handbook.png" },
+            { id: "KI-ATK", name: "ATK", price: 10000, image: "./assets/ki-atk.png" },
+            { id: "KI-PTF", name: "Pita Fakultas (per meter)", price: 3000, image: "./assets/ki-pitafakultas.png" },
+            { id: "KI-PPM", name: "Papermob", price: 100000, image: "./assets/ki-papermob.png" },
+            { id: "KI-JSH", name: "Jas Hujan", price: 12000, image: "./assets/ki-jashujan.png" },
+            { id: "KI-KPP", name: "Kipas Portable", price: 18000, image: "./assets/ki-kipasportable.png" },
+            { id: "KI-PYG", name: "Payung", price: 50000, image: "./assets/ki-payung.png" },
+            { id: "KI-TMB", name: "Tumbler", price: 10000, image: "./assets/ki-tumbler.png" },
+            { id: "KI-KMP", name: "Kemeja Putih", price: 80000, image: "./assets/ki-kemejaputih.png" },
+            { id: "KI-CLH", name: "Celana Hitam", price: 90000, image: "./assets/ki-celanahitam.png" },
+            { id: "KI-RKH", name: "Rok Hitam", price: 90000, image: "./assets/ki-rokhitam.png" },
+            { id: "KI-IPH", name: "Ikat Pinggang Hitam", price: 12000, image: "./assets/ki-ikatpingganghitam.png" },
+            { id: "KI-KSK", name: "Kaos Kaki", price: 15000, image: "./assets/ki-kaoskaki.png" },
+            { id: "KI-SPH", name: "Sepatu Hitam", price: 150000, image: "./assets/ki-sepatuhitam.png" }
+        ];
+
+        // Menggabungkan semua katalog untuk pencarian saat Add to Cart
+        const allCatalog = [...bundles, ...products];
+
+        let cart = JSON.parse(localStorage.getItem('pkkmb_cart')) || [];
+        const ADMIN_WA_NUMBER = "6281234567890";
+        let viewHistory = ['view-products']; 
+
+        /**
+         * 2. UTILITY FUNCTIONS
+         */
+        const formatRupiah = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+
+        const switchView = (viewId) => {
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            
+            const backBtn = document.getElementById('nav-back-btn');
+            if (viewId === 'view-products') {
+                backBtn.classList.add('hidden');
+                viewHistory = ['view-products'];
+            } else {
+                backBtn.classList.remove('hidden');
+                if(viewHistory[viewHistory.length-1] !== viewId) {
+                    viewHistory.push(viewId);
+                }
+            }
+
+            if(viewId === 'view-cart') renderCart();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        const goBack = () => {
+            if(viewHistory.length > 1) {
+                viewHistory.pop();
+                const prevView = viewHistory[viewHistory.length - 1];
+                document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+                document.getElementById(prevView).classList.add('active');
+                
+                if (prevView === 'view-products') {
+                    document.getElementById('nav-back-btn').classList.add('hidden');
+                }
+                if(prevView === 'view-cart') renderCart();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                switchView('view-products');
+            }
+        };
+
+        const showToast = (message) => {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        };
+
+        const openImage = (src) => {
+            const viewer = document.getElementById('image-viewer');
+            const img = document.getElementById('viewer-img');
+            img.src = src;
+            
+            viewer.classList.remove('opacity-0', 'pointer-events-none');
+            viewer.classList.add('opacity-100', 'pointer-events-auto');
+            setTimeout(() => img.classList.replace('scale-95', 'scale-100'), 50);
+        };
+
+        const closeImage = () => {
+            const viewer = document.getElementById('image-viewer');
+            const img = document.getElementById('viewer-img');
+            
+            img.classList.replace('scale-100', 'scale-95');
+            viewer.classList.remove('opacity-100', 'pointer-events-auto');
+            viewer.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => img.src = '', 300);
+        };
+
+        /**
+         * 3. RENDER LOGIC
+         */
+         
+        const renderBundles = () => {
+            const track = document.getElementById('bundle-track');
+            track.innerHTML = '';
+            
+            // Loop array for infinite marquee illusion
+            const loopedBundles = [...bundles, ...bundles, ...bundles]; 
+
+            loopedBundles.forEach(bundle => {
+                const card = document.createElement('div');
+                card.className = "flex-none w-[280px] glass-panel rounded-[2rem] overflow-hidden flex flex-col group transition-transform duration-300 hover:scale-[1.02] hover:shadow-xl";
+                card.innerHTML = `
+                    <div class="h-44 w-full bg-white/30 relative overflow-hidden cursor-pointer" onclick="openImage('${bundle.image}')" title="Klik untuk memperbesar">
+                        <img src="${bundle.image}" alt="${bundle.name}" class="w-full h-full object-cover transition duration-500 group-hover:scale-105" onerror="this.onerror=null; this.src='https://placehold.co/400x300/e2e8f0/94a3b8?text=Image';">
+                        <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                            <div class="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-slate-800 shadow-md">
+                                <i class="ph ph-magnifying-glass-plus text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 flex-grow flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-slate-900 font-extrabold leading-tight mb-2 text-[15px]">${bundle.name}</h3>
+                            <p class="text-slate-500 text-[11px] line-clamp-2 leading-relaxed font-semibold">${bundle.description}</p>
+                        </div>
+                        <div class="flex justify-between items-center mt-5">
+                            <span class="text-blue-600 font-black text-lg">${formatRupiah(bundle.price)}</span>
+                            <button onclick="addToCart('${bundle.id}')" class="w-9 h-9 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition shadow-lg shadow-blue-500/40">
+                                <i class="ph ph-shopping-cart-simple font-bold text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                track.appendChild(card);
+            });
+        };
+
+        const renderProducts = () => {
+            const productContainer = document.getElementById('product-list');
+            productContainer.innerHTML = '';
+
+            products.forEach(product => {
+                const card = document.createElement('div');
+                // Desain kartu dibuat sangat bersih (Clean Apple Glass UI)
+                card.className = "glass-panel rounded-3xl overflow-hidden hover:-translate-y-1.5 hover:shadow-2xl transition duration-300 flex flex-col group border-white/80 relative";
+                card.innerHTML = `
+                    <div class="h-40 sm:h-48 w-full overflow-hidden bg-white/40 relative cursor-pointer" onclick="openImage('${product.image}')">
+                        <img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.onerror=null; this.src='https://placehold.co/400x300/e2e8f0/94a3b8?text=Product';">
+                        <div class="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-white/90 rounded-full flex items-center justify-center text-slate-800 shadow-md">
+                                <i class="ph ph-magnifying-glass-plus text-lg sm:text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 sm:p-5 flex-grow flex flex-col text-center">
+                        <h2 class="text-sm sm:text-base font-extrabold text-slate-800 leading-tight mb-1 truncate">${product.name}</h2>
+                        <div class="text-blue-600 font-black mb-4">${formatRupiah(product.price)}</div>
+                        <button onclick="addToCart('${product.id}')" class="mt-auto w-full bg-white/60 hover:bg-white backdrop-blur-md text-blue-600 font-bold py-2.5 sm:py-3 rounded-2xl transition flex items-center justify-center text-xs sm:text-sm shadow-sm border border-white/80">
+                            <i class="ph ph-plus font-bold mr-1.5 text-base"></i> Tambah
+                        </button>
+                    </div>
+                `;
+                productContainer.appendChild(card);
+            });
+        };
+
+        const renderCart = () => {
+            const cartContainer = document.getElementById('cart-items');
+            const subtotalEl = document.getElementById('cart-subtotal');
+            const totalEl = document.getElementById('cart-total');
+            const btnCheckout = document.getElementById('btn-proceed-checkout');
+            
+            cartContainer.innerHTML = '';
+            let total = 0;
+
+            if (cart.length === 0) {
+                cartContainer.innerHTML = `<div class="py-16 text-center text-slate-400 flex flex-col items-center justify-center"><i class="ph ph-shopping-bag text-5xl mb-4 opacity-30"></i><p class="font-medium">Keranjang masih kosong.</p></div>`;
+                btnCheckout.disabled = true;
+            } else {
+                btnCheckout.disabled = false;
+                cart.forEach(item => {
+                    total += item.price * item.quantity;
+                    const row = document.createElement('div');
+                    row.className = "py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4";
+                    row.innerHTML = `
+                        <div class="flex-grow">
+                            <h3 class="font-bold text-slate-900">${item.name}</h3>
+                            <div class="text-blue-600 font-semibold text-sm mt-1">${formatRupiah(item.price)} <span class="text-slate-400 font-medium">/ unit</span></div>
+                        </div>
+                        <div class="flex items-center space-x-3 bg-white/60 backdrop-blur-sm rounded-xl p-1 border border-white/80 shadow-sm">
+                            <button onclick="updateQuantity('${item.id}', -1)" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg transition font-bold">-</button>
+                            <span class="w-6 text-center font-bold text-slate-800">${item.quantity}</span>
+                            <button onclick="updateQuantity('${item.id}', 1)" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg transition font-bold">+</button>
+                        </div>
+                        <div class="text-right sm:w-32 flex flex-row sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto">
+                            <div class="font-bold text-slate-900 text-lg sm:text-base">${formatRupiah(item.price * item.quantity)}</div>
+                            <button onclick="removeFromCart('${item.id}')" class="text-red-500 text-sm font-bold hover:text-red-600 mt-1 flex items-center bg-red-50/50 px-2 py-1 rounded-md transition"><i class="ph ph-trash mr-1"></i>Hapus</button>
+                        </div>
+                    `;
+                    cartContainer.appendChild(row);
+                });
+            }
+
+            subtotalEl.textContent = formatRupiah(total);
+            totalEl.textContent = formatRupiah(total);
+            updateCartBadge();
+        };
+
+        const updateCartBadge = () => {
+            const badge = document.getElementById('cart-badge');
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            if (totalItems > 0) {
+                badge.textContent = totalItems > 99 ? '99' : totalItems;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        };
+
+        /**
+         * 4. CART LOGIC
+         */
+        const saveCartToLocal = () => localStorage.setItem('pkkmb_cart', JSON.stringify(cart));
+
+        const addToCart = (itemId) => {
+            const itemData = allCatalog.find(p => p.id === itemId);
+            if (!itemData) return;
+            
+            const existingItem = cart.find(item => item.id === itemId);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ id: itemData.id, name: itemData.name, price: itemData.price, quantity: 1 });
+            }
+            
+            saveCartToLocal();
+            updateCartBadge();
+            showToast(`${itemData.name} ditambahkan.`);
+        };
+
+        const updateQuantity = (itemId, change) => {
+            const index = cart.findIndex(item => item.id === itemId);
+            if (index !== -1) {
+                cart[index].quantity += change;
+                if (cart[index].quantity <= 0) cart.splice(index, 1);
+                saveCartToLocal();
+                renderCart();
+            }
+        };
+
+        const removeFromCart = (itemId) => {
+            cart = cart.filter(item => item.id !== itemId);
+            saveCartToLocal();
+            renderCart();
+        };
+
+        /**
+         * 5. CHECKOUT LOGIC
+         */
+        document.getElementById('checkout-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (cart.length === 0) return alert("Keranjang kosong!");
+
+            const customer = {
+                name: document.getElementById('ch-name').value.trim(),
+                phone: document.getElementById('ch-phone').value.trim(),
+                address: document.getElementById('ch-address').value.trim(),
+                notes: document.getElementById('ch-notes').value.trim()
+            };
+
+            const grandTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const orderId = `INV-${new Date().getTime().toString().slice(-6)}`;
+
+            let waText = `*PESANAN BARU - PKKMB 2026*\n---------------------------\n*ID Pesanan:* ${orderId}\n*Nama:* ${customer.name}\n*No. HP:* ${customer.phone}\n*Alamat Pengiriman:* ${customer.address}\n`;
+            if (customer.notes) waText += `*Catatan:* ${customer.notes}\n`;
+            waText += `\n*Rincian Pesanan:*\n`;
+            cart.forEach((item, i) => waText += `${i+1}. ${item.name}\n   ${item.quantity}x @ ${formatRupiah(item.price)} = ${formatRupiah(item.price * item.quantity)}\n`);
+            waText += `---------------------------\n*TOTAL TAGIHAN: ${formatRupiah(grandTotal)}*\n---------------------------\nMohon konfirmasi instruksi pembayaran. Terima kasih.`;
+
+            const waUrl = `https://wa.me/${ADMIN_WA_NUMBER}?text=${encodeURIComponent(waText)}`;
+
+            cart = [];
+            saveCartToLocal();
+            document.getElementById('checkout-form').reset();
+            updateCartBadge();
+
+            document.getElementById('btn-wa-redirect').href = waUrl;
+            switchView('view-success');
+        });
+
+        /**
+         * 6. INIT
+         */
+        renderBundles();
+        renderProducts();
+        updateCartBadge();
+
+    </script>
+</body>
+</html>
